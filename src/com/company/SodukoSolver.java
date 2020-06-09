@@ -12,6 +12,7 @@ public class SodukoSolver {
         resetGridStateToInput(inputGrid);
     }
 
+
     //region GridUtils
     public static int[][] readGridFromFile(String path) {
         int[][] grid = new int[9][9];
@@ -31,6 +32,23 @@ public class SodukoSolver {
             e.printStackTrace();
         }
         return grid;
+    }
+
+    private int markDownAllSafeGuesses() {
+        int amount = 0;
+        Coord coord = new Coord();
+        for (coord.row = 0; coord.row < 9; coord.row++)
+            for (coord.col = 0; coord.col < 9; coord.col++)
+                if (getStateFromCoords(coord).solvedNumber == 0) {
+                    int solvedNumber = getStateFromCoords(coord).getTheOnlyPossibleOne();
+                    if (solvedNumber > 0) {
+                        getStateFromCoords(coord).setOnlyPossibleNumber(solvedNumber);
+                        removeImpossibleNumbersFromNeighbours(coord, solvedNumber);
+                        amount++;
+                        System.out.println("(S) Found new solved number: " + solvedNumber + " at: " + coord);
+                    }
+                }
+        return amount;
     }
 
     //region SolverLogic
@@ -65,23 +83,6 @@ public class SodukoSolver {
             }
             System.out.println(String.format("Not solved after %s iterations, with %s Changes in last Iteration, missing %s/81 fields", iterations, amountOfChangesThisIteration, missingFields));
         }
-    }
-
-    private int markDownAllSafeGuesses() {
-        int amount = 0;
-        Coord coord = new Coord();
-        for (coord.row = 0; coord.row < 9; coord.row++)
-            for (coord.col = 0; coord.col < 9; coord.col++)
-                if (getStateFromCoords(coord).solvedNumber == 0) {
-                    int solvedNumber = getStateFromCoords(coord).getTheOnlyPossibleOne();
-                    if (solvedNumber > 0) {
-                        getStateFromCoords(coord).setOnlyPossibleNumber(solvedNumber);
-                        removeImpossibleNumbersFromNeighbours(coord, solvedNumber);
-                        amount++;
-                        System.out.println("(S) Found new solved number: " + solvedNumber + " at: " + coord);
-                    }
-                }
-        return amount;
     }
 
     //mark only possibles in row / col / box
@@ -127,9 +128,27 @@ public class SodukoSolver {
                 }
             }
         }
-        changes += markDownAllSafeGuesses();
+        //changes += markDownAllSafeGuesses();
         return changes;
     }
+
+    private ArrayList<PossiblePlaces> findOverlaps(ArrayList<PossiblePlaces> list) {
+        ArrayList<PossiblePlaces> filteredList = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            for (int j = 0; j < list.size(); j++) {
+                if (i != j) {
+                    if (list.get(i).possiblePlacesCoords.get(0).equals(list.get(j).possiblePlacesCoords.get(0))
+                            && list.get(i).possiblePlacesCoords.get(1).equals(list.get(j).possiblePlacesCoords.get(1))) {
+                        filteredList.add(list.get(i));
+                    }
+                }
+            }
+        }
+        return filteredList;
+    }
+
+    //endregion
+    //endregion
 
     //region Hidden Pairs
     //check if 2 numbers have same last 2 spots in common
@@ -185,27 +204,9 @@ public class SodukoSolver {
                 changes += cleanUpOverlapPairs(filteredList);
             }
         }
-        changes += markDownAllSafeGuesses();
+        //changes += markDownAllSafeGuesses();
         return changes;
     }
-
-    private ArrayList<PossiblePlaces> findOverlaps(ArrayList<PossiblePlaces> list) {
-        ArrayList<PossiblePlaces> filteredList = new ArrayList<>();
-        for (int i = 0; i < list.size(); i++) {
-            for (int j = 0; j < list.size(); j++) {
-                if (i != j) {
-                    if (list.get(i).possiblePlacesCoords.get(0).equals(list.get(j).possiblePlacesCoords.get(0))
-                            && list.get(i).possiblePlacesCoords.get(1).equals(list.get(j).possiblePlacesCoords.get(1))) {
-                        filteredList.add(list.get(i));
-                    }
-                }
-            }
-        }
-        return filteredList;
-    }
-
-    //endregion
-    //endregion
 
     private int cleanUpOverlapPairs(ArrayList<PossiblePlaces> list) {
         int changes = 0;

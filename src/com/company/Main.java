@@ -4,6 +4,10 @@ public class Main {
 
     public static void main(String[] args) {
         String path = "sodukoHard.txt";
+
+        if (args.length == 1)
+            path = args[0];
+
         int[][] inputGridA = SodukoSolver.readGridFromFile(path);
 
         int[][] inputGridB = new int[9][9];
