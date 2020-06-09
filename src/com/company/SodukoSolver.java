@@ -1,6 +1,9 @@
 package com.company;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 public class SodukoSolver {
     CellState[][] cellStates = new CellState[9][9];
@@ -9,27 +12,48 @@ public class SodukoSolver {
         resetGridStateToInput(inputGrid);
     }
 
-    private CellState getStateFromCoords(Coord coord) {
-        return cellStates[coord.row][coord.col];
+    //region GridUtils
+    public static int[][] readGridFromFile(String path) {
+        int[][] grid = new int[9][9];
+        try {
+            File myObj = new File(path);
+            Scanner myReader = new Scanner(myObj);
+            for (int row = 0; row < 9; row++) {
+                for (int col = 0; col < 9; col++) {
+                    if (myReader.hasNext())
+                        grid[row][col] = myReader.nextInt();
+                    else throw new IllegalArgumentException("Grid is not formated correctly");
+                }
+            }
+            myReader.close();
+        } catch (FileNotFoundException | IllegalArgumentException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+        return grid;
     }
 
+    //region SolverLogic
     public void solve() {
-        boolean isSolved = false;
+        boolean isSolved;
         int iterations = 0;
-        int amountOfChangesThisIteration = 10;
+        int amountOfChangesThisIteration;
         markDownAllSafeGuesses();
         printGrid();
-        while (!isSolved && iterations < 100 && amountOfChangesThisIteration > 0) {
+        do {
             iterations++;
             System.out.println("#" + iterations);
             amountOfChangesThisIteration = byRowColAndBox();
-            amountOfChangesThisIteration += markDownAllSafeGuesses();
-            amountOfChangesThisIteration += checkOverlapForLastTwo();
+            if (amountOfChangesThisIteration == 0)
+                amountOfChangesThisIteration += markDownAllSafeGuesses();
+            if (amountOfChangesThisIteration == 0)
+                amountOfChangesThisIteration += checkOverlapForLastTwo();
             isSolved = isSolved();
-
             System.out.println(String.format("Changes in this iteration: %s", amountOfChangesThisIteration));
-        }
+        } while (!isSolved && iterations < 100 && amountOfChangesThisIteration > 0);
+
         printGrid();
+
         if (isSolved) {
             System.out.println(String.format("Done in %s iterations", iterations));
         } else {
@@ -39,26 +63,8 @@ public class SodukoSolver {
                     missingFields += cellStates[row][col].solvedNumber > 0 ? 1 : 0;
                 }
             }
-            System.out.println(String.format("Not solved in %s iterations, with %s Changes in last Iteration, missing %s/81 fields", iterations, amountOfChangesThisIteration, missingFields));
+            System.out.println(String.format("Not solved after %s iterations, with %s Changes in last Iteration, missing %s/81 fields", iterations, amountOfChangesThisIteration, missingFields));
         }
-    }
-
-    public void resetGridState() {
-        for (int row = 0; row < 9; row++)
-            for (int col = 0; col < 9; col++)
-                cellStates[row][col] = new CellState();
-    }
-
-    public void resetGridStateToInput(int[][] inputGrid) {
-        resetGridState();
-        for (int row = 0; row < 9; row++)
-            for (int col = 0; col < 9; col++) {
-                int inputDigit = inputGrid[col][row];
-                if (inputDigit != 0) {
-                    cellStates[row][col].setOnlyPossibleNumber(inputDigit);
-                    cellStates[row][col].solvedNumber = 0;
-                }
-            }
     }
 
     private int markDownAllSafeGuesses() {
@@ -72,35 +78,10 @@ public class SodukoSolver {
                         getStateFromCoords(coord).setOnlyPossibleNumber(solvedNumber);
                         removeImpossibleNumbersFromNeighbours(coord, solvedNumber);
                         amount++;
-                        System.out.println("(A) Found new solved number: " + solvedNumber + " at: " + coord);
+                        System.out.println("(S) Found new solved number: " + solvedNumber + " at: " + coord);
                     }
                 }
         return amount;
-    }
-
-    private void removeImpossibleNumbersFromNeighbours(Coord coord, int number) {
-        removeImpossibleNumbersFromNeighbours(coord.row, coord.col, number);
-    }
-
-    //remove impossibles
-    private void removeImpossibleNumbersFromNeighbours(int row, int col, int number) {
-        //rows
-        ArrayList<Coord> otherInRow = getOtherCellsInSameRow(row, col);
-        removeImpossibleNumberFormCoordsList(otherInRow, number);
-
-        //cols
-        ArrayList<Coord> otherInCol = getOtherCellsInSameCol(row, col);
-        removeImpossibleNumberFormCoordsList(otherInCol, number);
-
-        //boxes
-        ArrayList<Coord> otherInBox = getOtherCellsInSameBox(row, col);
-        removeImpossibleNumberFormCoordsList(otherInBox, number);
-    }
-
-    private void removeImpossibleNumberFormCoordsList(ArrayList<Coord> coords, int number) {
-        for (Coord coord : coords) {
-            getStateFromCoords(coord).setNotPossible(number);
-        }
     }
 
     //mark only possibles in row / col / box
@@ -131,7 +112,6 @@ public class SodukoSolver {
                     }
                 }
             }
-
             //boxes
             for (int boxRow = 0; boxRow < 3; boxRow++) {
                 for (int boxCol = 0; boxCol < 3; boxCol++) {
@@ -147,43 +127,11 @@ public class SodukoSolver {
                 }
             }
         }
-        //markDownAllSafeGuesses();
+        changes += markDownAllSafeGuesses();
         return changes;
     }
 
-
-    private ArrayList<PossiblePlaces> findOverlaps(ArrayList<PossiblePlaces> list) {
-        ArrayList<PossiblePlaces> filteredList = new ArrayList<>();
-        for (int i = 0; i < list.size(); i++) {
-            for (int j = 0; j < list.size(); j++) {
-                if (i != j) {
-                    if (list.get(i).possiblePlacesCoords.get(0).equals(list.get(j).possiblePlacesCoords.get(0))
-                            && list.get(i).possiblePlacesCoords.get(1).equals(list.get(j).possiblePlacesCoords.get(1))) {
-                        filteredList.add(list.get(i));
-                    }
-                }
-            }
-        }
-
-        return filteredList;
-    }
-
-    private int cleanUpOverlapPairs(ArrayList<PossiblePlaces> list) {
-        int changes = 0;
-        if (list.size() == 2) {
-            Coord coordA = list.get(0).possiblePlacesCoords.get(0);
-            Coord coordB = list.get(0).possiblePlacesCoords.get(1);
-            int numberA = list.get(0).number;
-            int numberB = list.get(1).number;
-            getStateFromCoords(coordA).setLastTwoPossibleNumbers(numberA, numberB);
-            getStateFromCoords(coordB).setLastTwoPossibleNumbers(numberA, numberB);
-            changes += 2;
-            System.out.println(String.format("(O) Left only %s,%s in the coords %s/%s, %s/%s", numberA, numberB, coordA.row, coordA.col, coordB.row, coordB.col));
-        }
-        return changes;
-    }
-
-
+    //region Hidden Pairs
     //check if 2 numbers have same last 2 spots in common
     private int checkOverlapForLastTwo() {
         int changes = 0;
@@ -237,10 +185,64 @@ public class SodukoSolver {
                 changes += cleanUpOverlapPairs(filteredList);
             }
         }
-
+        changes += markDownAllSafeGuesses();
         return changes;
     }
 
+    private ArrayList<PossiblePlaces> findOverlaps(ArrayList<PossiblePlaces> list) {
+        ArrayList<PossiblePlaces> filteredList = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            for (int j = 0; j < list.size(); j++) {
+                if (i != j) {
+                    if (list.get(i).possiblePlacesCoords.get(0).equals(list.get(j).possiblePlacesCoords.get(0))
+                            && list.get(i).possiblePlacesCoords.get(1).equals(list.get(j).possiblePlacesCoords.get(1))) {
+                        filteredList.add(list.get(i));
+                    }
+                }
+            }
+        }
+        return filteredList;
+    }
+
+    //endregion
+    //endregion
+
+    private int cleanUpOverlapPairs(ArrayList<PossiblePlaces> list) {
+        int changes = 0;
+        if (list.size() == 2) {
+            Coord coordA = list.get(0).possiblePlacesCoords.get(0);
+            Coord coordB = list.get(0).possiblePlacesCoords.get(1);
+            int numberA = list.get(0).number;
+            int numberB = list.get(1).number;
+            getStateFromCoords(coordA).setLastTwoPossibleNumbers(numberA, numberB);
+            getStateFromCoords(coordB).setLastTwoPossibleNumbers(numberA, numberB);
+            changes += 2;
+            System.out.println(String.format("(O) Left only %s,%s in the coords %s/%s, %s/%s", numberA, numberB, coordA.row, coordA.col, coordB.row, coordB.col));
+        }
+        return changes;
+    }
+
+    private CellState getStateFromCoords(Coord coord) {
+        return cellStates[coord.row][coord.col];
+    }
+
+    public void resetGridState() {
+        for (int row = 0; row < 9; row++)
+            for (int col = 0; col < 9; col++)
+                cellStates[row][col] = new CellState();
+    }
+
+    public void resetGridStateToInput(int[][] inputGrid) {
+        resetGridState();
+        for (int row = 0; row < 9; row++)
+            for (int col = 0; col < 9; col++) {
+                int inputDigit = inputGrid[col][row];
+                if (inputDigit != 0) {
+                    cellStates[row][col].setOnlyPossibleNumber(inputDigit);
+                    cellStates[row][col].solvedNumber = 0;
+                }
+            }
+    }
 
     private boolean isSolved() {
         for (int row = 0; row < 9; row++) {
@@ -250,6 +252,44 @@ public class SodukoSolver {
             }
         }
         return true;
+    }
+
+    private void printGrid() {
+        Coord currentCoord = new Coord();
+        System.out.println("Printing Grid");
+        for (currentCoord.row = 0; currentCoord.row < 9; currentCoord.row++) {
+            if (currentCoord.row % 3 == 0)
+                System.out.println("-----------------------");
+            System.out.print("|");
+            for (currentCoord.col = 0; currentCoord.col < 9; currentCoord.col++) {
+                if (currentCoord.col % 3 == 0)
+                    System.out.print("|");
+                System.out.print(getStateFromCoords(currentCoord).solvedNumber + "|");
+            }
+            System.out.println("|");
+        }
+    }
+
+    //remove impossibles
+    private void removeImpossibleNumbersFromNeighbours(int row, int col, int number) {
+        //rows
+        ArrayList<Coord> otherInRow = getOtherCellsInSameRow(row, col);
+        removeImpossibleNumberFromCoordsList(otherInRow, number);
+        //cols
+        ArrayList<Coord> otherInCol = getOtherCellsInSameCol(row, col);
+        removeImpossibleNumberFromCoordsList(otherInCol, number);
+        //boxes
+        ArrayList<Coord> otherInBox = getOtherCellsInSameBox(row, col);
+        removeImpossibleNumberFromCoordsList(otherInBox, number);
+    }
+
+    private void removeImpossibleNumbersFromNeighbours(Coord coord, int number) {
+        removeImpossibleNumbersFromNeighbours(coord.row, coord.col, number);
+    }
+
+    private void removeImpossibleNumberFromCoordsList(ArrayList<Coord> coords, int number) {
+        for (Coord coord : coords)
+            getStateFromCoords(coord).setNotPossible(number);
     }
 
     private ArrayList<Coord> getOtherCellsInSameRow(int row, int col) {
@@ -269,7 +309,6 @@ public class SodukoSolver {
     }
 
     private ArrayList<Coord> getOtherCellsInSameBox(int row, int col) {
-
         ArrayList<Coord> cellsInSameRow = new ArrayList<>();
         int rowStart = (row / 3) * 3;
         int colStart = (col / 3) * 3;
@@ -278,22 +317,6 @@ public class SodukoSolver {
                 if (!(row == otherRow && col == otherCol))
                     cellsInSameRow.add(new Coord(otherRow, otherCol));
         return cellsInSameRow;
-    }
-
-    private void printGrid() {
-        Coord currentCoord = new Coord();
-        System.out.println("Printing Grid");
-        for (currentCoord.row = 0; currentCoord.row < 9; currentCoord.row++) {
-            if (currentCoord.row % 3 == 0)
-                System.out.println("-----------------------");
-            System.out.print("|");
-            for (currentCoord.col = 0; currentCoord.col < 9; currentCoord.col++) {
-                if (currentCoord.col % 3 == 0)
-                    System.out.print("|");
-                System.out.print(getStateFromCoords(currentCoord).solvedNumber + "|");
-            }
-            System.out.println("|");
-        }
     }
 
     private boolean isRowMissingNumber(int row, int number) {
@@ -314,10 +337,9 @@ public class SodukoSolver {
         boxRow *= 3;
         boxCol *= 3;
         for (int row = boxRow * 3; row < boxRow + 3; row++)
-            for (int col = boxCol * 3; col < boxCol + 3; col++) {
+            for (int col = boxCol * 3; col < boxCol + 3; col++)
                 if (cellStates[row][col].solvedNumber == number)
                     return false;
-            }
         return true;
     }
 
@@ -347,4 +369,5 @@ public class SodukoSolver {
                     possiblesInBox.add(new Coord(row, col));
         return possiblesInBox;
     }
+    //endregion
 }
