@@ -1,4 +1,4 @@
-package com.company;
+package de.dorbird;
 
 import java.util.ArrayList;
 

@@ -1,4 +1,4 @@
-package com.company;
+package de.dorbird;
 
 public class Main {
 
