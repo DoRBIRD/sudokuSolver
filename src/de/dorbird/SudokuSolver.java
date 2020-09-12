@@ -42,7 +42,7 @@ public class SudokuSolver {
             int missingFields = 0;
             for (int row = 0; row < 9; row++) {
                 for (int col = 0; col < 9; col++) {
-                    missingFields += cellStates[row][col].solvedNumber > 0 ? 1 : 0;
+                    missingFields += cellStates[row][col].solvedNumber > 0 ? 0 : 1;
                 }
             }
             System.out.printf("Not solved after %s iterations, with %s Changes in last Iteration, missing %s/81 fields%n", iterations, amountOfChangesThisIteration, missingFields);
@@ -127,7 +127,7 @@ public class SudokuSolver {
         return filteredList;
     }
 
-    private boolean doesShareRow(ArrayList<Coord> coords) {
+    private boolean allShareRow(ArrayList<Coord> coords) {
         int firstRowNumber = coords.get(0).row;
         for (int i = 1; i < coords.size(); i++) {
             if(firstRowNumber != coords.get(i).row)
@@ -136,7 +136,7 @@ public class SudokuSolver {
         return true;
     }
 
-    private boolean doesShareCol(ArrayList<Coord> coords) {
+    private boolean allShareCol(ArrayList<Coord> coords) {
         int firstColNumber = coords.get(0).col;
         for (int i = 1; i < coords.size(); i++) {
             if (firstColNumber != coords.get(i).col)
@@ -192,6 +192,39 @@ public class SudokuSolver {
                                     }
                                 }
                             System.out.println("(H) Found new shared houses for number: " + number + " in col: " + col);
+                        }
+                    }
+                }
+            }
+
+            //box
+
+            for (int boxRow = 0; boxRow < 3; boxRow++) {
+                for (int boxCol = 0; boxCol < 3; boxCol++) {
+                    int boxNumber = 3 * boxCol + boxRow;
+                    ArrayList<Coord> possibles = getAllPossiblesForNumberInBox(boxRow, boxCol, number);
+                    if (possibles.size() == 2 || possibles.size() == 3) {
+                        if (allShareRow(possibles)) {
+                            ArrayList<Coord> inSameRow = getAllPossiblesForNumberInRow(possibles.get(0).row, number);
+                            if (inSameRow.size() > possibles.size())
+                                for (Coord coord : inSameRow) {
+                                    if (coord.getBoxNumber() != boxNumber) {
+                                        getStateFromCoords(coord).setNotPossible(number);
+                                        changes ++;
+                                    }
+                                }
+                            System.out.printf("(H) Found new shared houses for number: %s in box: %s ",number, boxNumber);
+                        }
+                        if (allShareCol(possibles)) {
+                            ArrayList<Coord> inSameCol = getAllPossiblesForNumberInCol(possibles.get(0).getBoxCol(), number);
+                            if (inSameCol.size() > possibles.size())
+                                for (Coord coord : inSameCol) {
+                                    if (coord.getBoxNumber() != boxNumber) {
+                                        getStateFromCoords(coord).setNotPossible(number);
+                                        changes ++;
+                                    }
+                                }
+                            System.out.printf("(H) Found new shared houses for number: %s in box: %s ",number, boxNumber);
                         }
                     }
                 }
