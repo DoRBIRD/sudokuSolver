@@ -1,3 +1,7 @@
 /.idea/
 /out/
 /sodukosolver.iml
+
+*.iml
+
+src/META-INF/MANIFEST.MF

@@ -11,12 +11,12 @@ public class CellState {
     }
 
     public ArrayList<Integer> getAllPossibleNumbers() {
-        ArrayList<Integer> possbileNumbers = new ArrayList<>();
+        ArrayList<Integer> possibleNumbers = new ArrayList<>();
         for (int digit = 1; digit <= 9; digit++) {
             if (isNumberPossible(digit))
-                possbileNumbers.add(digit);
+                possibleNumbers.add(digit);
         }
-        return possbileNumbers;
+        return possibleNumbers;
     }
 
     public void setOnlyPossibleNumber(int number) {
@@ -45,8 +45,9 @@ public class CellState {
 
     @Override
     public String toString() {
-        return String.format("[1-%s, 2-%s, 3-%s, 4-%s, 5-%s, 6-%s, 7-%s, 8-%s, 9-%s]",
-                boolToEmoji(state[1]), boolToEmoji(state[1]), boolToEmoji(state[2]),
+        return String.format("[SolvedNumber: %s 1-%s, 2-%s, 3-%s, 4-%s, 5-%s, 6-%s, 7-%s, 8-%s, 9-%s]",
+                solvedNumber,
+                boolToEmoji(state[0]), boolToEmoji(state[1]), boolToEmoji(state[2]),
                 boolToEmoji(state[3]), boolToEmoji(state[4]), boolToEmoji(state[5]),
                 boolToEmoji(state[6]), boolToEmoji(state[7]), boolToEmoji(state[8]));
     }

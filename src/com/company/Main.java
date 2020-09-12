@@ -8,13 +8,13 @@ public class Main {
         if (args.length == 1)
             path = args[0];
 
-        int[][] inputGridA = SodukoSolver.readGridFromFile(path);
+        int[][] inputGridA = SudokuSolver.readGridFromFile(path);
 
         int[][] inputGridB = new int[9][9];
         for (int row = 0; row < 9; row++)
             for (int col = 0; col < 9; col++)
                 inputGridB[row][col] = inputGridA[col][row];
-        SodukoSolver solver = new SodukoSolver(inputGridB);
+        SudokuSolver solver = new SudokuSolver(inputGridB);
         solver.solve();
     }
 }

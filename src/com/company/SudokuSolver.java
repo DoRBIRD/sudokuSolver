@@ -5,33 +5,48 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-public class SodukoSolver {
+public class SudokuSolver {
     CellState[][] cellStates = new CellState[9][9];
 
-    public SodukoSolver(int[][] inputGrid) {
+    public SudokuSolver(int[][] inputGrid) {
         resetGridStateToInput(inputGrid);
     }
 
+    //region SolverLogic
 
-    //region GridUtils
-    public static int[][] readGridFromFile(String path) {
-        int[][] grid = new int[9][9];
-        try {
-            File myObj = new File(path);
-            Scanner myReader = new Scanner(myObj);
+    public void solve() {
+        boolean isSolved;
+        int iterations = 0;
+        int amountOfChangesThisIteration;
+        markDownAllSafeGuesses();
+        printGrid();
+        do {
+            iterations++;
+            System.out.println("#" + iterations);
+            amountOfChangesThisIteration = markDownAllSafeGuesses();
+            if (amountOfChangesThisIteration == 0)
+                amountOfChangesThisIteration += byRowColAndBox();
+            if (amountOfChangesThisIteration == 0)
+                amountOfChangesThisIteration += lastOptionsShareHouse();
+            if (amountOfChangesThisIteration == 0)
+                amountOfChangesThisIteration += checkOverlapForLastTwo();
+            isSolved = isSolved();
+            System.out.printf("Changes in this iteration: %s%n", amountOfChangesThisIteration);
+        } while (!isSolved && iterations < 100 && amountOfChangesThisIteration > 0);
+
+        printGrid();
+
+        if (isSolved) {
+            System.out.printf("Done in %s iterations%n", iterations);
+        } else {
+            int missingFields = 0;
             for (int row = 0; row < 9; row++) {
                 for (int col = 0; col < 9; col++) {
-                    if (myReader.hasNext())
-                        grid[row][col] = myReader.nextInt();
-                    else throw new IllegalArgumentException("Grid is not formated correctly");
+                    missingFields += cellStates[row][col].solvedNumber > 0 ? 1 : 0;
                 }
             }
-            myReader.close();
-        } catch (FileNotFoundException | IllegalArgumentException e) {
-            System.out.println("An error occurred.");
-            e.printStackTrace();
+            System.out.printf("Not solved after %s iterations, with %s Changes in last Iteration, missing %s/81 fields%n", iterations, amountOfChangesThisIteration, missingFields);
         }
-        return grid;
     }
 
     private int markDownAllSafeGuesses() {
@@ -49,40 +64,6 @@ public class SodukoSolver {
                     }
                 }
         return amount;
-    }
-
-    //region SolverLogic
-    public void solve() {
-        boolean isSolved;
-        int iterations = 0;
-        int amountOfChangesThisIteration;
-        markDownAllSafeGuesses();
-        printGrid();
-        do {
-            iterations++;
-            System.out.println("#" + iterations);
-            amountOfChangesThisIteration = byRowColAndBox();
-            if (amountOfChangesThisIteration == 0)
-                amountOfChangesThisIteration += markDownAllSafeGuesses();
-            if (amountOfChangesThisIteration == 0)
-                amountOfChangesThisIteration += checkOverlapForLastTwo();
-            isSolved = isSolved();
-            System.out.println(String.format("Changes in this iteration: %s", amountOfChangesThisIteration));
-        } while (!isSolved && iterations < 100 && amountOfChangesThisIteration > 0);
-
-        printGrid();
-
-        if (isSolved) {
-            System.out.println(String.format("Done in %s iterations", iterations));
-        } else {
-            int missingFields = 0;
-            for (int row = 0; row < 9; row++) {
-                for (int col = 0; col < 9; col++) {
-                    missingFields += cellStates[row][col].solvedNumber > 0 ? 1 : 0;
-                }
-            }
-            System.out.println(String.format("Not solved after %s iterations, with %s Changes in last Iteration, missing %s/81 fields", iterations, amountOfChangesThisIteration, missingFields));
-        }
     }
 
     //mark only possibles in row / col / box
@@ -128,7 +109,6 @@ public class SodukoSolver {
                 }
             }
         }
-        //changes += markDownAllSafeGuesses();
         return changes;
     }
 
@@ -147,8 +127,78 @@ public class SodukoSolver {
         return filteredList;
     }
 
-    //endregion
-    //endregion
+    private boolean doesShareRow(ArrayList<Coord> coords) {
+        int firstRowNumber = coords.get(0).row;
+        for (int i = 1; i < coords.size(); i++) {
+            if(firstRowNumber != coords.get(i).row)
+                return false;
+        }
+        return true;
+    }
+
+    private boolean doesShareCol(ArrayList<Coord> coords) {
+        int firstColNumber = coords.get(0).col;
+        for (int i = 1; i < coords.size(); i++) {
+            if (firstColNumber != coords.get(i).col)
+                return false;
+        }
+        return true;
+    }
+
+    private boolean allShareBox(ArrayList<Coord> coords) {
+        int firstBoxNumber = coords.get(0).getBoxNumber();
+        for (int i = 1; i < coords.size(); i++) {
+            if (firstBoxNumber != coords.get(i).getBoxNumber())
+                return false;
+        }
+        return true;
+    }
+
+    private int lastOptionsShareHouse() {
+        int changes = 0;
+        for (int number = 1; number <= 9; number++) {
+            //rows
+            for (int row = 0; row < 9; row++) {
+                if (isRowMissingNumber(row, number)) {
+                    ArrayList<Coord> possibles = getAllPossiblesForNumberInRow(row, number);
+                    if (possibles.size() == 2 || possibles.size() == 3) {
+                        if (allShareBox(possibles)) {
+                            ArrayList<Coord> inSameBox = getAllPossiblesForNumberInBox(possibles.get(0).getBoxRow(), possibles.get(0).getBoxCol(), number);
+                            if (inSameBox.size() > possibles.size())
+                                for (Coord coord : inSameBox) {
+                                    if (coord.row != row) {
+                                        getStateFromCoords(coord).setNotPossible(number);
+                                        changes ++;
+                                    }
+                                }
+                            System.out.println("(H) Found new shared houses for number: " + number + " in row: " + row);
+                        }
+                    }
+                }
+            }
+
+            //cols
+            for (int col = 0; col < 9; col++) {
+                if (isColMissingNumber(col, number)) {
+                    ArrayList<Coord> possibles = getAllPossiblesForNumberInCol(col, number);
+                    if (possibles.size() == 2 || possibles.size() == 3) {
+                        if (allShareBox(possibles)) {
+                            ArrayList<Coord> inSameBox = getAllPossiblesForNumberInBox(possibles.get(0).getBoxRow(), possibles.get(0).getBoxCol(), number);
+                            if (inSameBox.size() > possibles.size())
+                                for (Coord coord : inSameBox) {
+                                    if (coord.col != col) {
+                                        getStateFromCoords(coord).setNotPossible(number);
+                                        changes ++;
+                                    }
+                                }
+                            System.out.println("(H) Found new shared houses for number: " + number + " in col: " + col);
+                        }
+                    }
+                }
+            }
+        }
+        return changes;
+    }
 
     //region Hidden Pairs
     //check if 2 numbers have same last 2 spots in common
@@ -162,7 +212,7 @@ public class SodukoSolver {
                     PossiblePlaces places = new PossiblePlaces(number, getAllPossiblesForNumberInRow(rows, number));
                     if (places.possiblePlacesCoords.size() == 2) {
                         list.add(places);
-                        System.out.println(String.format("(O) Found 2 of %s Left in Row %s ", number, rows));
+                        System.out.printf("(O) Found 2 of %s Left in Row %s %n", number, rows);
                     }
                 }
             }
@@ -204,7 +254,6 @@ public class SodukoSolver {
                 changes += cleanUpOverlapPairs(filteredList);
             }
         }
-        //changes += markDownAllSafeGuesses();
         return changes;
     }
 
@@ -213,14 +262,41 @@ public class SodukoSolver {
         if (list.size() == 2) {
             Coord coordA = list.get(0).possiblePlacesCoords.get(0);
             Coord coordB = list.get(0).possiblePlacesCoords.get(1);
-            int numberA = list.get(0).number;
-            int numberB = list.get(1).number;
-            getStateFromCoords(coordA).setLastTwoPossibleNumbers(numberA, numberB);
-            getStateFromCoords(coordB).setLastTwoPossibleNumbers(numberA, numberB);
-            changes += 2;
-            System.out.println(String.format("(O) Left only %s,%s in the coords %s/%s, %s/%s", numberA, numberB, coordA.row, coordA.col, coordB.row, coordB.col));
+            if (getStateFromCoords(coordA).getAllPossibleNumbers().size() > 2 || getStateFromCoords(coordB).getAllPossibleNumbers().size() > 2){
+                int numberA = list.get(0).number;
+                int numberB = list.get(1).number;
+                getStateFromCoords(coordA).setLastTwoPossibleNumbers(numberA, numberB);
+                getStateFromCoords(coordB).setLastTwoPossibleNumbers(numberA, numberB);
+                changes += 2;
+                System.out.printf("(O) Left only %s,%s in the coords %s/%s, %s/%s%n", numberA, numberB, coordA.row, coordA.col, coordB.row, coordB.col);
+            }
         }
         return changes;
+    }
+    //endregion
+
+    //endregion
+
+    //region GridUtils
+
+    public static int[][] readGridFromFile(String path) {
+        int[][] grid = new int[9][9];
+        try {
+            File myObj = new File(path);
+            Scanner myReader = new Scanner(myObj);
+            for (int row = 0; row < 9; row++) {
+                for (int col = 0; col < 9; col++) {
+                    if (myReader.hasNext())
+                        grid[row][col] = myReader.nextInt();
+                    else throw new IllegalArgumentException("Grid is not formatted correctly");
+                }
+            }
+            myReader.close();
+        } catch (FileNotFoundException | IllegalArgumentException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+        return grid;
     }
 
     private CellState getStateFromCoords(Coord coord) {
