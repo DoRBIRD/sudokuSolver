@@ -54,16 +54,22 @@ public class SudokuSolver {
         Coord coord = new Coord();
         for (coord.row = 0; coord.row < 9; coord.row++)
             for (coord.col = 0; coord.col < 9; coord.col++)
-                if (getStateFromCoords(coord).solvedNumber == 0) {
-                    int solvedNumber = getStateFromCoords(coord).getTheOnlyPossibleOne();
-                    if (solvedNumber > 0) {
-                        getStateFromCoords(coord).setOnlyPossibleNumber(solvedNumber);
-                        removeImpossibleNumbersFromNeighbours(coord, solvedNumber);
-                        amount++;
-                        System.out.println("(S) Found new solved number: " + solvedNumber + " at: " + coord);
-                    }
-                }
+                amount += markDownIfSafeGuess(coord);
         return amount;
+    }
+
+    private int markDownIfSafeGuess(Coord coord){
+        int changed = 0;
+        if (getStateFromCoords(coord).solvedNumber == 0) {
+            int solvedNumber = getStateFromCoords(coord).getTheOnlyPossibleOne();
+            if (solvedNumber > 0) {
+                getStateFromCoords(coord).setOnlyPossibleNumber(solvedNumber);
+                removeImpossibleNumbersFromNeighbours(coord, solvedNumber);
+                changed++;
+                System.out.println("(S) Found new solved number: " + solvedNumber + " at: " + coord);
+            }
+        }
+        return changed;
     }
 
     //mark only possibles in row / col / box
@@ -164,14 +170,18 @@ public class SudokuSolver {
                     if (possibles.size() == 2 || possibles.size() == 3) {
                         if (allShareBox(possibles)) {
                             ArrayList<Coord> inSameBox = getAllPossiblesForNumberInBox(possibles.get(0).getBoxRow(), possibles.get(0).getBoxCol(), number);
-                            if (inSameBox.size() > possibles.size())
+                            if (inSameBox.size() > possibles.size()){
                                 for (Coord coord : inSameBox) {
                                     if (coord.row != row) {
-                                        getStateFromCoords(coord).setNotPossible(number);
-                                        changes ++;
+                                        if (!getStateFromCoords(coord).isNumberPossible(number)){
+                                            getStateFromCoords(coord).setNotPossible(number);
+                                            changes ++;
+                                            changes += markDownIfSafeGuess(coord);
+                                        }
                                     }
                                 }
-                            System.out.println("(H) Found new shared houses for number: " + number + " in row: " + row);
+                                System.out.printf("(H) Found new shared houses for number: %s in row: %s \n",number, row);
+                            }
                         }
                     }
                 }
@@ -184,51 +194,50 @@ public class SudokuSolver {
                     if (possibles.size() == 2 || possibles.size() == 3) {
                         if (allShareBox(possibles)) {
                             ArrayList<Coord> inSameBox = getAllPossiblesForNumberInBox(possibles.get(0).getBoxRow(), possibles.get(0).getBoxCol(), number);
-                            if (inSameBox.size() > possibles.size())
+                            if (inSameBox.size() > possibles.size()){
                                 for (Coord coord : inSameBox) {
                                     if (coord.col != col) {
-                                        getStateFromCoords(coord).setNotPossible(number);
-                                        changes ++;
+                                        if (!getStateFromCoords(coord).isNumberPossible(number)){
+                                            getStateFromCoords(coord).setNotPossible(number);
+                                            changes ++;
+                                            changes += markDownIfSafeGuess(coord);
+                                        }
                                     }
                                 }
-                            System.out.println("(H) Found new shared houses for number: " + number + " in col: " + col);
+                                System.out.printf("(H) Found new shared houses for number: %s in col: %s\n", number, col);
+                            }
                         }
                     }
                 }
             }
 
             //box
-
             for (int boxRow = 0; boxRow < 3; boxRow++) {
                 for (int boxCol = 0; boxCol < 3; boxCol++) {
                     int boxNumber = 3 * boxCol + boxRow;
                     ArrayList<Coord> possibles = getAllPossiblesForNumberInBox(boxRow, boxCol, number);
                     if (possibles.size() == 2 || possibles.size() == 3) {
-                        if (allShareRow(possibles)) {
-                            ArrayList<Coord> inSameRow = getAllPossiblesForNumberInRow(possibles.get(0).row, number);
-                            if (inSameRow.size() > possibles.size())
-                                for (Coord coord : inSameRow) {
+                        if (allShareRow(possibles) || allShareCol(possibles)) {
+                            ArrayList<Coord> inSameHouse = allShareRow(possibles) ?
+                                    getAllPossiblesForNumberInRow(possibles.get(0).row, number) :
+                                    getAllPossiblesForNumberInCol(possibles.get(0).col, number);
+                            if (inSameHouse.size() > possibles.size()){
+                                for (Coord coord : inSameHouse) {
                                     if (coord.getBoxNumber() != boxNumber) {
-                                        getStateFromCoords(coord).setNotPossible(number);
-                                        changes ++;
+                                        if (!getStateFromCoords(coord).isNumberPossible(number)){
+                                            getStateFromCoords(coord).setNotPossible(number);
+                                            changes ++;
+                                            changes += markDownIfSafeGuess(coord);
+                                        }
                                     }
                                 }
-                            System.out.printf("(H) Found new shared houses for number: %s in box: %s ",number, boxNumber);
-                        }
-                        if (allShareCol(possibles)) {
-                            ArrayList<Coord> inSameCol = getAllPossiblesForNumberInCol(possibles.get(0).getBoxCol(), number);
-                            if (inSameCol.size() > possibles.size())
-                                for (Coord coord : inSameCol) {
-                                    if (coord.getBoxNumber() != boxNumber) {
-                                        getStateFromCoords(coord).setNotPossible(number);
-                                        changes ++;
-                                    }
-                                }
-                            System.out.printf("(H) Found new shared houses for number: %s in box: %s ",number, boxNumber);
+                                System.out.printf("(H) Found new shared houses for number: %s in box: %s \n",number, boxNumber);
+                            }
                         }
                     }
                 }
             }
+
         }
         return changes;
     }

@@ -45,8 +45,8 @@ public class CellState {
 
     @Override
     public String toString() {
-        return String.format("[SolvedNumber: %s 1-%s, 2-%s, 3-%s, 4-%s, 5-%s, 6-%s, 7-%s, 8-%s, 9-%s]",
-                solvedNumber,
+        return String.format("[%s SolvedNumber: %s 1-%s, 2-%s, 3-%s, 4-%s, 5-%s, 6-%s, 7-%s, 8-%s, 9-%s]",
+                boolToEmoji(solvedNumber > 0),solvedNumber,
                 boolToEmoji(state[0]), boolToEmoji(state[1]), boolToEmoji(state[2]),
                 boolToEmoji(state[3]), boolToEmoji(state[4]), boolToEmoji(state[5]),
                 boolToEmoji(state[6]), boolToEmoji(state[7]), boolToEmoji(state[8]));
